@@ -76,5 +76,24 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Enable GitHub Pages (Actions source)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const opts = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              build_type: "workflow",
+            };
+            try {
+              await github.rest.repos.createPagesSite(opts);
+              core.info("Enabled GitHub Pages with Actions as the source.");
+            } catch (err) {
+              if (err.status === 409) {
+                core.info("GitHub Pages already enabled.");
+                return;
+              }
+              core.warning(`createPagesSite: ${err.status} ${err.message}`);
+            }
       - id: deployment
         uses: actions/deploy-pages@v4
