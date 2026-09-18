@@ -5,8 +5,11 @@ Static kiosk: Doom shareware, Quake shareware, and the official Quake II demo.
 
 ## Play
 
-GitHub Pages (after the first `main` deploy):
+Intended GitHub Pages URL (after the repo has Pages **enabled**):
 `https://njm-cursor-x.github.io/classic-games/`
+
+The Actions build already produces a `github-pages` artifact. The first `deploy-pages` job 404s until someone with admin on the repo opens
+**Settings → Pages → Source: GitHub Actions** (private Pages also needs GitHub Pro; the Doom/Quake repos are public for that reason).
 
 Each cabinet is its own page (`/doom/`, `/quake/`, `/quake2/`) so pointer lock works. The Arcade chip returns to the splash.
 
