@@ -8,9 +8,21 @@ JOBS="$(nproc 2>/dev/null || echo 4)"
 
 ensure_clone() {
   local dest="$1" url="$2"
-  if [[ ! -d "$dest/.git" ]]; then
-    git clone "$url" "$dest"
+  if [[ -d "$dest/.git" ]]; then
+    return 0
   fi
+  rm -rf "$dest"
+  local i
+  for i in 1 2 3 4; do
+    if git clone "$url" "$dest"; then
+      return 0
+    fi
+    echo "::warning::git clone ${url} failed (attempt ${i})" >&2
+    rm -rf "$dest"
+    sleep $((i * 4))
+  done
+  echo "::error::git clone ${url} failed after retries" >&2
+  return 1
 }
 
 patch_qwasm2_skip_gl1() {
