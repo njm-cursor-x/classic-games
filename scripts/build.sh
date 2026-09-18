@@ -8,7 +8,7 @@ JOBS="$(nproc 2>/dev/null || echo 4)"
 ensure_clone() {
   local dest="$1" url="$2"
   if [[ ! -d "$dest/.git" ]]; then
-    git clone --recursive --depth 1 "$url" "$dest"
+    git clone "$url" "$dest"
   fi
 }
 
@@ -33,6 +33,9 @@ mkdir -p "$DIST"
 cp "$ROOT/apps/launcher/index.html" "$ROOT/apps/launcher/styles.css" "$DIST/"
 touch "$DIST/.nojekyll"
 
+echo "==> Toolchain"
+command -v emcc
+emcc -v
 echo "==> Doom"
 ensure_clone "$ROOT/third_party/web-doom" "https://github.com/njm-cursor-x/web-doom.git"
 git -C "$ROOT/third_party/web-doom" submodule update --init --recursive
