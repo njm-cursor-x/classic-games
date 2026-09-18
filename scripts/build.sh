@@ -66,13 +66,15 @@ ensure_clone "$ROOT/third_party/qwasm2" "https://github.com/GMH-Code/Qwasm2.git"
 "$ROOT/scripts/fetch-quake2-demo.sh"
 cp "$ROOT/games/quake2/shell.html" "$ROOT/third_party/qwasm2/wasm/shell.html"
 mkdir -p "$ROOT/third_party/qwasm2/wasm/baseq2"
+cp "$ROOT/games/quake2/baseq2/config.cfg" "$ROOT/games/quake2/baseq2/wasm.cfg" \
+  "$ROOT/third_party/qwasm2/wasm/baseq2/"
 # Keep configs only in the preload; demo PAK is a sibling asset, not embedded.
 patch_qwasm2_skip_gl1 "$ROOT/third_party/qwasm2/Makefile"
 if ! command -v emcc >/dev/null 2>&1; then
   echo "emcc not found. Activate emsdk before building Quake 2." >&2
   exit 1
 fi
-( cd "$ROOT/third_party/qwasm2" && emmake make -j"$JOBS" ref_soft ref_gles3 game client )
+( cd "$ROOT/third_party/qwasm2" && emmake make -j"$JOBS" config ref_soft ref_gles3 game && emmake make -j"$JOBS" client )
 mkdir -p "$DIST/quake2/baseq2"
 cp "$ROOT/third_party/qwasm2/release/index.js" \
   "$ROOT/third_party/qwasm2/release/index.wasm" \

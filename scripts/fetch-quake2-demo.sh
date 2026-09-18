@@ -8,6 +8,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 EXE="${ROOT}/cache/q2-314-demo-x86.exe"
 PAK="${ROOT}/cache/q2-demo-pak0.pak"
 URL="${Q2_DEMO_URL:-https://deponie.yamagi.org/quake2/idstuff/q2-314-demo-x86.exe}"
+FALLBACKS=(
+  "$URL"
+  "https://ftp.gwdg.de/pub/misc/ftp.idsoftware.com/idstuff/quake2/q2-314-demo-x86.exe"
+)
 EXE_SHA256="7ace5a43983f10d6bdc9d9b6e17a1032ba6223118d389bd170df89b945a04a1e"
 EXE_SIZE=39015499
 PAK_SHA256="cae257182f34d3913f3d663e1e7cf865d668feda6af393d4ecf3e9e408b48d09"
@@ -28,13 +32,22 @@ fi
 
 mkdir -p "${ROOT}/cache"
 if [[ ! -f "$EXE" ]] || [[ "$(sha256_of "$EXE")" != "$EXE_SHA256" ]]; then
-  echo "Downloading Quake II demo installer..."
-  curl -L --fail -o "${EXE}.tmp" "$URL"
-  ACTUAL="$(sha256_of "${EXE}.tmp")"
-  ACTUAL_SIZE="$(wc -c < "${EXE}.tmp" | tr -d ' ')"
-  if [[ "$ACTUAL" != "$EXE_SHA256" || "$ACTUAL_SIZE" != "$EXE_SIZE" ]]; then
+  ok=0
+  for candidate in "${FALLBACKS[@]}"; do
+    echo "Downloading Quake II demo installer from ${candidate}..."
+    if curl -L --fail --retry 3 -o "${EXE}.tmp" "$candidate"; then
+      ACTUAL="$(sha256_of "${EXE}.tmp")"
+      ACTUAL_SIZE="$(wc -c < "${EXE}.tmp" | tr -d ' ')"
+      if [[ "$ACTUAL" == "$EXE_SHA256" && "$ACTUAL_SIZE" == "$EXE_SIZE" ]]; then
+        ok=1
+        break
+      fi
+      echo "Checksum mismatch from ${candidate} (got ${ACTUAL}, ${ACTUAL_SIZE} bytes)." >&2
+    fi
     rm -f "${EXE}.tmp"
-    echo "Checksum mismatch for demo installer (got ${ACTUAL}, ${ACTUAL_SIZE} bytes)." >&2
+  done
+  if [[ "$ok" != 1 ]]; then
+    echo "Failed to fetch a verified q2-314-demo-x86.exe." >&2
     exit 1
   fi
   mv "${EXE}.tmp" "$EXE"
