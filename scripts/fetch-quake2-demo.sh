@@ -13,6 +13,7 @@ FALLBACKS=(
   "https://ftp.gwdg.de/pub/misc/ftp.idsoftware.com/idstuff/quake2/q2-314-demo-x86.exe"
   "http://ftpmirror.infania.net/pub/idsoftware/quake2/q2-314-demo-x86.exe"
   "https://ftp.idsoftware.com/idstuff/quake2/q2-314-demo-x86.exe"
+  "http://ftp.idsoftware.com/idstuff/quake2/q2-314-demo-x86.exe"
 )
 EXE_SHA256="7ace5a43983f10d6bdc9d9b6e17a1032ba6223118d389bd170df89b945a04a1e"
 EXE_SIZE=39015499
@@ -37,19 +38,28 @@ if [[ ! -f "$EXE" ]] || [[ "$(sha256_of "$EXE")" != "$EXE_SHA256" ]]; then
   ok=0
   for candidate in "${FALLBACKS[@]}"; do
     echo "Downloading Quake II demo installer from ${candidate}..."
-    if curl -L --fail --retry 5 --retry-all-errors -A "classic-games-arcade/1.0" -o "${EXE}.tmp" "$candidate"; then
+    rm -f "${EXE}.tmp"
+    set +e
+    HTTP_CODE="$(curl -4 -L --retry 3 -A "classic-games-arcade/1.0" \
+      -o "${EXE}.tmp" -w "%{http_code}" "$candidate")"
+    CURL_RC=$?
+    set -e
+    if [[ "$CURL_RC" -eq 0 && -f "${EXE}.tmp" ]]; then
       ACTUAL="$(sha256_of "${EXE}.tmp")"
       ACTUAL_SIZE="$(wc -c < "${EXE}.tmp" | tr -d ' ')"
+      echo "mirror ${candidate} http=${HTTP_CODE} bytes=${ACTUAL_SIZE} sha256=${ACTUAL}"
       if [[ "$ACTUAL" == "$EXE_SHA256" && "$ACTUAL_SIZE" == "$EXE_SIZE" ]]; then
         ok=1
         break
       fi
-      echo "Checksum mismatch from ${candidate} (got ${ACTUAL}, ${ACTUAL_SIZE} bytes)." >&2
+      echo "::warning::Checksum mismatch from ${candidate} (http ${HTTP_CODE}, ${ACTUAL}, ${ACTUAL_SIZE} bytes)." >&2
+    else
+      echo "::warning::Download failed from ${candidate} (curl rc ${CURL_RC}, http ${HTTP_CODE:-none})." >&2
     fi
     rm -f "${EXE}.tmp"
   done
   if [[ "$ok" != 1 ]]; then
-    echo "Failed to fetch a verified q2-314-demo-x86.exe." >&2
+    echo "::error::Failed to fetch a verified q2-314-demo-x86.exe from all mirrors." >&2
     exit 1
   fi
   mv "${EXE}.tmp" "$EXE"
@@ -66,7 +76,7 @@ elif command -v unzip >/dev/null 2>&1; then
   unzip -j -o "$EXE" "Install/Data/baseq2/pak0.pak" -d "$WORKDIR" || \
     unzip -j -o "$EXE" "*/pak0.pak" -d "$WORKDIR"
 else
-  echo "Need 7z or unzip to extract the demo installer." >&2
+  echo "::error::Need 7z or unzip to extract the demo installer." >&2
   exit 1
 fi
 
@@ -77,15 +87,10 @@ while IFS= read -r candidate_pak; do
     break
   fi
 done < <(find "$WORKDIR" -iname 'pak0.pak')
-if [[ -z "$FOUND" ]]; then
-  echo "pak0.pak not found in demo installer." >&2
-  exit 1
-fi
 
-ACTUAL="$(sha256_of "$FOUND")"
-ACTUAL_SIZE="$(wc -c < "$FOUND" | tr -d ' ')"
-if [[ "$ACTUAL" != "$PAK_SHA256" || "$ACTUAL_SIZE" != "$PAK_SIZE" ]]; then
-  echo "Extracted pak0.pak failed integrity check (${ACTUAL}, ${ACTUAL_SIZE} bytes)." >&2
+if [[ -z "$FOUND" ]]; then
+  echo "::error::pak0.pak not found or failed integrity check in demo installer." >&2
+  find "$WORKDIR" -type f -exec ls -l {} \; >&2 || true
   exit 1
 fi
 

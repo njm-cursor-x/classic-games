@@ -34,6 +34,11 @@ mkdir -p "$DIST"
 cp "$ROOT/apps/launcher/index.html" "$ROOT/apps/launcher/styles.css" "$DIST/"
 touch "$DIST/.nojekyll"
 
+echo "==> Fetch shareware/demo data"
+"$ROOT/scripts/fetch-doom-shareware.sh"
+"$ROOT/scripts/fetch-quake-shareware.sh"
+"$ROOT/scripts/fetch-quake2-demo.sh"
+
 echo "==> Toolchain"
 command -v emcc
 emcc -v
