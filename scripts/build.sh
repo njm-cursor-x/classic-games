@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'echo "::error::build.sh failed at line ${LINENO}: ${BASH_COMMAND}" >&2' ERR
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST="${ROOT}/dist"
@@ -40,8 +41,18 @@ echo "==> Doom"
 ensure_clone "$ROOT/third_party/web-doom" "https://github.com/njm-cursor-x/web-doom.git"
 git -C "$ROOT/third_party/web-doom" submodule update --init --recursive
 "$ROOT/scripts/fetch-doom-shareware.sh"
-mkdir -p "$ROOT/third_party/web-doom/wad"
+mkdir -p "$ROOT/third_party/web-doom/wad" \
+  "$ROOT/third_party/web-doom/build/musicpack" \
+  "$ROOT/third_party/web-doom/build/soundfont"
 cp "$ROOT/cache/doom1.wad" "$ROOT/third_party/web-doom/wad/doom1.wad"
+# Skip the 129 MB FluidR3 render in CI; SFX still play. Seed the files
+# package() copies so web-doom's build.sh does not invoke render-music.sh.
+if [[ ! -f "$ROOT/third_party/web-doom/build/musicpack/doom1-music.cfg" ]]; then
+  printf '# arcade stub — music pack omitted\n' > "$ROOT/third_party/web-doom/build/musicpack/doom1-music.cfg"
+fi
+if [[ ! -f "$ROOT/third_party/web-doom/build/soundfont/FLUIDR3-COPYING" ]]; then
+  printf 'FluidR3 not bundled in this arcade build.\n' > "$ROOT/third_party/web-doom/build/soundfont/FLUIDR3-COPYING"
+fi
 cp "$ROOT/games/doom/index.html" "$ROOT/games/doom/app.js" \
   "$ROOT/games/doom/styles.css" "$ROOT/games/doom/arcade-back.css" \
   "$ROOT/third_party/web-doom/web/"
