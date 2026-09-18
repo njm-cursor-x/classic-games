@@ -11,6 +11,8 @@ URL="${Q2_DEMO_URL:-https://deponie.yamagi.org/quake2/idstuff/q2-314-demo-x86.ex
 FALLBACKS=(
   "$URL"
   "https://ftp.gwdg.de/pub/misc/ftp.idsoftware.com/idstuff/quake2/q2-314-demo-x86.exe"
+  "http://ftpmirror.infania.net/pub/idsoftware/quake2/q2-314-demo-x86.exe"
+  "https://ftp.idsoftware.com/idstuff/quake2/q2-314-demo-x86.exe"
 )
 EXE_SHA256="7ace5a43983f10d6bdc9d9b6e17a1032ba6223118d389bd170df89b945a04a1e"
 EXE_SIZE=39015499
@@ -35,7 +37,7 @@ if [[ ! -f "$EXE" ]] || [[ "$(sha256_of "$EXE")" != "$EXE_SHA256" ]]; then
   ok=0
   for candidate in "${FALLBACKS[@]}"; do
     echo "Downloading Quake II demo installer from ${candidate}..."
-    if curl -L --fail --retry 3 -o "${EXE}.tmp" "$candidate"; then
+    if curl -L --fail --retry 5 --retry-all-errors -A "classic-games-arcade/1.0" -o "${EXE}.tmp" "$candidate"; then
       ACTUAL="$(sha256_of "${EXE}.tmp")"
       ACTUAL_SIZE="$(wc -c < "${EXE}.tmp" | tr -d ' ')"
       if [[ "$ACTUAL" == "$EXE_SHA256" && "$ACTUAL_SIZE" == "$EXE_SIZE" ]]; then
@@ -59,15 +61,22 @@ trap cleanup EXIT
 
 echo "Extracting demo pak0.pak..."
 if command -v 7z >/dev/null 2>&1; then
-  7z e -y -o"$WORKDIR" "$EXE" "Install/Data/baseq2/pak0.pak" >/dev/null
+  7z e -y -r -o"$WORKDIR" "$EXE" "pak0.pak" >/dev/null
 elif command -v unzip >/dev/null 2>&1; then
-  unzip -j -o "$EXE" "Install/Data/baseq2/pak0.pak" -d "$WORKDIR"
+  unzip -j -o "$EXE" "Install/Data/baseq2/pak0.pak" -d "$WORKDIR" || \
+    unzip -j -o "$EXE" "*/pak0.pak" -d "$WORKDIR"
 else
   echo "Need 7z or unzip to extract the demo installer." >&2
   exit 1
 fi
 
-FOUND="$(find "$WORKDIR" -iname 'pak0.pak' | head -n 1)"
+FOUND=""
+while IFS= read -r candidate_pak; do
+  if [[ "$(sha256_of "$candidate_pak")" == "$PAK_SHA256" ]]; then
+    FOUND="$candidate_pak"
+    break
+  fi
+done < <(find "$WORKDIR" -iname 'pak0.pak')
 if [[ -z "$FOUND" ]]; then
   echo "pak0.pak not found in demo installer." >&2
   exit 1
