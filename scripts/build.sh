@@ -45,7 +45,6 @@ emcc -v
 echo "==> Doom"
 ensure_clone "$ROOT/third_party/web-doom" "https://github.com/njm-cursor-x/web-doom.git"
 git -C "$ROOT/third_party/web-doom" submodule update --init --recursive
-"$ROOT/scripts/fetch-doom-shareware.sh"
 mkdir -p "$ROOT/third_party/web-doom/wad" \
   "$ROOT/third_party/web-doom/build/musicpack" \
   "$ROOT/third_party/web-doom/build/soundfont"
@@ -69,7 +68,6 @@ cp "$ROOT/games/doom/arcade-back.css" "$DIST/doom/"
 echo "==> Quake"
 ensure_clone "$ROOT/third_party/quake" "https://github.com/njm-cursor-x/quake.git"
 git -C "$ROOT/third_party/quake" submodule update --init --recursive
-"$ROOT/scripts/fetch-quake-shareware.sh"
 mkdir -p "$ROOT/third_party/quake/data"
 cp "$ROOT/cache/quake106.zip" "$ROOT/third_party/quake/data/quake106.zip"
 cp "$ROOT/games/quake/index.html" "$ROOT/games/quake/app.js" \
@@ -82,7 +80,6 @@ cp "$ROOT/games/quake/arcade-back.css" "$DIST/quake/"
 
 echo "==> Quake 2"
 ensure_clone "$ROOT/third_party/qwasm2" "https://github.com/GMH-Code/Qwasm2.git"
-"$ROOT/scripts/fetch-quake2-demo.sh"
 cp "$ROOT/games/quake2/shell.html" "$ROOT/third_party/qwasm2/wasm/shell.html"
 mkdir -p "$ROOT/third_party/qwasm2/wasm/baseq2"
 cp "$ROOT/games/quake2/baseq2/config.cfg" "$ROOT/games/quake2/baseq2/wasm.cfg" \
