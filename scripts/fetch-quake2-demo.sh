@@ -71,10 +71,11 @@ trap cleanup EXIT
 
 echo "Extracting demo pak0.pak..."
 if command -v 7z >/dev/null 2>&1; then
-  7z e -y -r -o"$WORKDIR" "$EXE" "pak0.pak" >/dev/null
+  7z l "$EXE" >&2 || true
+  7z x -y -o"$WORKDIR" "$EXE" >/dev/null
 elif command -v unzip >/dev/null 2>&1; then
-  unzip -j -o "$EXE" "Install/Data/baseq2/pak0.pak" -d "$WORKDIR" || \
-    unzip -j -o "$EXE" "*/pak0.pak" -d "$WORKDIR"
+  unzip -l "$EXE" >&2 || true
+  unzip -o "$EXE" -d "$WORKDIR"
 else
   echo "::error::Need 7z or unzip to extract the demo installer." >&2
   exit 1
@@ -82,11 +83,17 @@ fi
 
 FOUND=""
 while IFS= read -r candidate_pak; do
-  if [[ "$(sha256_of "$candidate_pak")" == "$PAK_SHA256" ]]; then
+  SIZE_NOW="$(wc -c < "$candidate_pak" | tr -d ' ')"
+  HASH_NOW="$(sha256_of "$candidate_pak")"
+  echo "::warning::extracted ${candidate_pak} bytes=${SIZE_NOW} sha256=${HASH_NOW}" >&2
+  if [[ "$HASH_NOW" == "$PAK_SHA256" ]]; then
+    if [[ "$HASH_NOW" != "$PAK_SHA256" ]]; then
+      echo "::warning::pak0.pak size matched but hash ${HASH_NOW} != ${PAK_SHA256}" >&2
+    fi
     FOUND="$candidate_pak"
     break
   fi
-done < <(find "$WORKDIR" -iname 'pak0.pak')
+done < <(find "$WORKDIR" -iname 'pak0.pak' -o -iname '*.pak')
 
 if [[ -z "$FOUND" ]]; then
   echo "::error::pak0.pak not found or failed integrity check in demo installer." >&2
