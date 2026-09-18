@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Arcade — Powered by Cursor / SpaceXAI</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="crt" aria-hidden="true"></div>
+    <header class="mast">
+      <p class="eyebrow">Classic games kiosk</p>
+      <h1>Arcade</h1>
+      <p class="powered">Powered by Cursor / SpaceXAI</p>
+    </header>
+    <main class="grid">
+      <a class="tile" href="doom/">
+        <span class="tag">Shareware</span>
+        <h2>Doom</h2>
+        <p>Episode 1 — Knee-Deep in the Dead. Software-rendered WASM port.</p>
+        <span class="go">Play</span>
+      </a>
+      <a class="tile" href="quake/">
+        <span class="tag">Shareware</span>
+        <h2>Quake</h2>
+        <p>Episode 1 — Dimension of the Doomed. GLQuake via WebGL.</p>
+        <span class="go">Play</span>
+      </a>
+      <a class="tile" href="quake2/">
+        <span class="tag">Demo</span>
+        <h2>Quake 2</h2>
+        <p>Official demo maps. Yamagi Quake II via WebGL 2.</p>
+        <span class="go">Play</span>
+      </a>
+    </main>
+    <footer>
+      Desktop-first. Click a cabinet — each game is its own page (pointer lock
+      does not survive an iframe). Engines are GPL-2; shareware/demo data is
+      fetched at build time and is © id Software. This kiosk is not affiliated
+      with id Software.
+    </footer>
+  </body>
+</html>

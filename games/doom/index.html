@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Doom — Arcade</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="arcade-back.css" />
+  </head>
+  <body>
+    <a class="arcade-back" href="../">Arcade</a>
+    <header class="top">
+      <h1><img src="doom-logo.png" alt="Doom" width="123" height="60" /></h1>
+      <p class="sub">Powered by Cursor / SpaceXAI</p>
+    </header>
+
+    <div id="splash" class="panel">
+      <p>
+        The original Doom engine, compiled to WebAssembly. Ships id's freely
+        redistributable shareware episode — <em>Knee-Deep in the Dead</em>.
+        Own the full game? Load your own IWAD; it never leaves your browser.
+      </p>
+      <fieldset>
+        <legend>Game data</legend>
+        <p class="hint pick">Doom shareware, episode 1</p>
+        <label class="drop">
+          Or choose your own <code>.wad</code>
+          <input id="wad-file" type="file" accept=".wad,.WAD" />
+        </label>
+        <p id="wad-name" class="hint" hidden></p>
+      </fieldset>
+      <button id="start" type="button">Start</button>
+      <div id="progress" class="progress" hidden>
+        <div class="track"><div id="fill" class="fill"></div></div>
+      </div>
+      <p id="status" class="hint"></p>
+    </div>
+
+    <div id="game" hidden>
+      <div class="stage">
+        <canvas id="canvas" width="640" height="400" tabindex="0"></canvas>
+      </div>
+      <dl class="controls">
+        <div><dt>Move</dt><dd>W/S or arrows</dd></div>
+        <div><dt>Strafe</dt><dd>A / D</dd></div>
+        <div><dt>Turn</dt><dd>Mouse</dd></div>
+        <div><dt>Fire</dt><dd>Ctrl or left click</dd></div>
+        <div><dt>Use</dt><dd>Space</dd></div>
+        <div><dt>Run</dt><dd>Shift</dd></div>
+      </dl>
+      <p class="hint pad">
+        Click the canvas to lock the mouse. Use the Arcade chip to leave — Esc
+        is the in-game menu. Gamepad: left stick moves, right stick looks, RT
+        fires. Connect the pad before Start.
+      </p>
+    </div>
+
+    <footer>
+      Engine: GPL-2.0 (id Software / Chocolate Doom / doomgeneric). See
+      <a href="COPYING">COPYING</a>. Shareware episode 1 © id Software, freely
+      redistributable. Music rendered with
+      <a href="FLUIDR3-COPYING">FluidR3</a> (MIT). Not affiliated with id
+      Software.
+    </footer>
+    <script src="app.js" type="module"></script>
+  </body>
+</html>

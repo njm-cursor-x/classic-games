@@ -1,0 +1,76 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fluidsynth p7zip-full cmake ninja-build
+
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.64
+          actions-cache-folder: emsdk-cache
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Cache shareware / demo blobs
+        uses: actions/cache@v4
+        with:
+          path: cache
+          key: shareware-${{ hashFiles('scripts/fetch-doom-shareware.sh', 'scripts/fetch-quake-shareware.sh', 'scripts/fetch-quake2-demo.sh') }}
+
+      - name: Cache Doom music pack
+        uses: actions/cache@v4
+        with:
+          path: |
+            third_party/web-doom/build/musicpack
+            third_party/web-doom/build/soundfont/FLUIDR3-COPYING
+          key: musicpack-${{ hashFiles('third_party/web-doom/scripts/render-music.sh') }}
+
+      - name: Build arcade
+        run: ./scripts/build.sh
+
+      - name: Verify no unexpected game data
+        run: |
+          test -f dist/index.html
+          test -f dist/doom/doomgeneric.wasm
+          test -f dist/quake/quake.wasm
+          test -f dist/quake2/index.wasm
+          test -f dist/doom/wad/doom1.wad
+          test -f dist/quake/data/quake106.zip
+          test -f dist/quake2/baseq2/pak0.pak
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

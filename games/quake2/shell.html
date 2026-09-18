@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quake 2 — Arcade</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="arcade-back.css" />
+    <style>
+      :root {
+        --bg: #14120b;
+        --fg: #edecec;
+        --muted: rgba(237, 236, 236, 0.6);
+        --card: #1b1913;
+        --accent: #f54e00;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--fg);
+        font: 15px/1.45 ui-sans-serif, system-ui, sans-serif;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 1.25rem 1rem 2rem;
+        gap: 1rem;
+      }
+      .top { text-align: center; margin-top: 1.5rem; }
+      .top h1 {
+        margin: 0;
+        font-size: 2.2rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+      .sub {
+        margin: 0.5rem 0 0;
+        color: var(--muted);
+        font-size: 0.8rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
+      textarea.emscripten {
+        font-family: ui-monospace, monospace;
+        font-size: 13px;
+        width: min(960px, calc(100% - 24px));
+        height: 8rem;
+        margin-top: 8px;
+        background: var(--card);
+        color: var(--muted);
+        border: 1px solid rgba(237, 236, 236, 0.15);
+        resize: none;
+        display: none;
+        outline: none;
+      }
+      div.emscripten { text-align: center; }
+      canvas.emscripten {
+        border: 0;
+        background: #000;
+        display: none;
+        outline: none;
+        max-width: min(100vw - 2rem, 960px);
+        height: auto;
+      }
+      #status {
+        color: var(--muted);
+        min-height: 1.4em;
+      }
+      progress {
+        accent-color: var(--accent);
+        width: min(24rem, 80vw);
+      }
+      .spinner {
+        height: 50px;
+        width: 50px;
+        margin: 0 auto;
+        animation: rotation 0.8s linear infinite;
+        border-left: 10px solid #201e18;
+        border-right: 10px solid #201e18;
+        border-bottom: 10px solid #201e18;
+        border-top: 10px solid var(--accent);
+        border-radius: 100%;
+        background: var(--bg);
+      }
+      @keyframes rotation {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      figure { margin: 1rem 0 0; }
+      footer {
+        color: var(--muted);
+        font-size: 0.75rem;
+        max-width: 40rem;
+        text-align: center;
+      }
+      footer a { color: var(--accent); }
+    </style>
+  </head>
+  <body>
+    <a class="arcade-back" href="../">Arcade</a>
+    <header class="top">
+      <h1>Quake 2</h1>
+      <p class="sub">Powered by Cursor / SpaceXAI · official demo</p>
+    </header>
+    <figure id="spinner">
+      <div class="spinner"></div>
+      <div style="margin-top:0.5em; text-align:center;"><strong>Loading demo</strong></div>
+    </figure>
+    <div class="emscripten" id="status">Downloading…</div>
+    <div class="emscripten">
+      <progress value="0" max="100" id="progress" hidden></progress>
+    </div>
+    <textarea class="emscripten" id="output" readonly></textarea>
+    <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+    <a id="exportFile" hidden></a>
+    <footer>
+      Engine: GPL-2.0 (id Software / Yamagi Quake II / Qwasm2). See
+      <a href="LICENSE">LICENSE</a>. Official Quake II demo © id Software.
+      Not affiliated with id Software. Use the Arcade chip to leave — Esc is
+      the in-game menu.
+    </footer>
+    <script>
+      var statusElement = document.getElementById('status');
+      var progressElement = document.getElementById('progress');
+      var spinnerElement = document.getElementById('spinner');
+      var canvasElement = document.getElementById('canvas');
+      var outputElement = document.getElementById('output');
+      var exportElement = document.getElementById('exportFile');
+
+      var PAK_URL = 'baseq2/pak0.pak';
+      var PAK_SHA256 = 'cae257182f34d3913f3d663e1e7cf865d668feda6af393d4ecf3e9e408b48d09';
+      var PAK_SIZE = 49951322;
+      var pendingPak = null;
+
+      function hex(buffer) {
+        return [...new Uint8Array(buffer)].map((b) => b.toString(16).padStart(2, '0')).join('');
+      }
+
+      async function loadDemoPak() {
+        const response = await fetch(PAK_URL);
+        if (!response.ok) throw new Error('Could not load demo pak0.pak (HTTP ' + response.status + ')');
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        if (bytes.length !== PAK_SIZE) {
+          throw new Error('Unexpected pak0.pak size (' + bytes.length + ')');
+        }
+        const digest = hex(await crypto.subtle.digest('SHA-256', bytes));
+        if (digest !== PAK_SHA256) {
+          throw new Error('pak0.pak failed integrity check');
+        }
+        return bytes;
+      }
+
+      pendingPak = loadDemoPak().catch((err) => {
+        statusElement.textContent = err.message;
+        throw err;
+      });
+
+      var Module = {
+        _canLockPointer: true,
+        print: (function() {
+          outputElement.value = '';
+          return function(text) {
+            if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+            console.log(text);
+            outputElement.value += text + "\n";
+            outputElement.scrollTop = outputElement.scrollHeight;
+          };
+        })(),
+        canvas: (() => {
+          canvasElement.addEventListener("webglcontextlost", (e) => {
+            alert('WebGL context lost. Reload the page.');
+            e.preventDefault();
+          }, false);
+          return canvasElement;
+        })(),
+        setStatus: (text) => {
+          if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+          if (text === Module.setStatus.last.text) return;
+          var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+          var now = Date.now();
+          if (m && now - Module.setStatus.last.time < 30) return;
+          Module.setStatus.last.time = now;
+          Module.setStatus.last.text = text;
+          if (m) {
+            text = m[1];
+            progressElement.value = parseInt(m[2])*100;
+            progressElement.max = parseInt(m[4])*100;
+            progressElement.hidden = false;
+            spinnerElement.hidden = false;
+          } else {
+            progressElement.value = null;
+            progressElement.max = null;
+            progressElement.hidden = true;
+            if (!text) spinnerElement.hidden = true;
+          }
+          statusElement.innerHTML = text;
+        },
+        hideConsole: () => {
+          outputElement.style.display = 'none';
+          canvasElement.style.display = 'block';
+          canvasElement.focus();
+        },
+        showConsole: () => {
+          canvasElement.style.display = 'none';
+          outputElement.style.display = 'block';
+          outputElement.scrollTop = outputElement.scrollHeight;
+          outputElement.focus();
+        },
+        exportFile: (filePath) => {
+          try {
+            const filePathSplit = filePath.split('/');
+            const dataArray = new Uint8Array(FS.readFile(filePath));
+            const dataBlob = new Blob([dataArray], {type: 'application/octet-stream'});
+            const objURL = URL.createObjectURL(dataBlob);
+            exportElement.href = objURL;
+            exportElement.download = filePathSplit[filePathSplit.length - 1];
+            exportElement.click();
+            URL.revokeObjectURL(objURL);
+          } catch (error) {
+            console.error('Error exporting file:', error);
+          }
+        },
+        winResized: () => {},
+        setGamma: (vidGamma) => {
+          vidGamma = Number(Number(vidGamma).toFixed(2));
+          canvasElement.style.filter = vidGamma < 0 ? null : 'brightness(' + (vidGamma * 2.0) + ')';
+        },
+        captureMouse: () => {
+          if (Module._canLockPointer && !Module._attemptPointerLock()) {
+            Module._canLockPointer = false;
+            document.addEventListener('keydown', Module._lockPointerOnKey);
+          }
+        },
+        _attemptPointerLock: () => {
+          if (document.pointerLockElement === null) {
+            canvasElement.requestPointerLock();
+          }
+          return document.pointerLockElement !== null;
+        },
+        _lockPointerOnKey: (event) => {
+          if ((event.key === 'Escape') || Module._attemptPointerLock()) {
+            document.removeEventListener('keydown', Module._lockPointerOnKey);
+            Module._canLockPointer = true;
+          }
+        },
+        preRun: [function () {
+          Module.addRunDependency('demo-pak');
+          pendingPak.then((bytes) => {
+            try {
+              FS.mkdir('/baseq2');
+            } catch (_) { /* exists from preload */ }
+            FS.writeFile('/baseq2/pak0.pak', bytes);
+          }).then(() => {
+            Module.removeRunDependency('demo-pak');
+          }).catch((err) => {
+            Module.setStatus(err.message);
+          });
+        }],
+        locateFile: (path) => path,
+        totalDependencies: 0,
+        monitorRunDependencies: (left) => {
+          Module.totalDependencies = Math.max(Module.totalDependencies, left);
+          Module.setStatus(left ? 'Preparing... (' + (Module.totalDependencies-left) + '/' + Module.totalDependencies + ')' : 'All downloads complete.');
+        },
+        onRuntimeInitialized: () => {
+          outputElement.style.display = 'block';
+        },
+        softExit: (status) => {
+          console.info('Program exited with code', status);
+        },
+        arguments: ['+set', 'vid_renderer', 'gles3'].concat(
+          window.location.search.length > 1 ? window.location.search.substr(1).split('&') : []
+        )
+      };
+      Module.setStatus('Downloading...');
+      window.onerror = () => {
+        Module.setStatus('Exception thrown, see JavaScript console');
+        spinnerElement.style.display = 'none';
+        Module.setStatus = (text) => {
+          if (text) console.error('[post-exception status] ' + text);
+        };
+      };
+    </script>
+    {{{ SCRIPT }}}
+  </body>
+</html>
