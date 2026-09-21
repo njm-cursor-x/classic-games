@@ -23,7 +23,7 @@ jobs:
       - name: Install build deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends fluidsynth p7zip-full cmake ninja-build
+          sudo apt-get install -y --no-install-recommends fluidsynth p7zip-full cmake ninja-build build-essential
 
       - uses: mymindstorm/setup-emsdk@v14
         with:
@@ -40,13 +40,16 @@ jobs:
           path: cache
           key: shareware-${{ hashFiles('scripts/fetch-doom-shareware.sh', 'scripts/fetch-quake-shareware.sh', 'scripts/fetch-quake2-demo.sh') }}
 
+      # Persist the small rendered Ogg pack so the 129 MB FluidR3 soundfont is
+      # only fetched/rendered on a cache miss. Lives at repo root because the
+      # engine tree is re-cloned each build. Bump the key to force a re-render.
       - name: Cache Doom music pack
         uses: actions/cache@v4
         with:
-          path: |
-            third_party/web-doom/build/musicpack
-            third_party/web-doom/build/soundfont/FLUIDR3-COPYING
-          key: musicpack-${{ hashFiles('third_party/web-doom/scripts/render-music.sh') }}
+          path: .music-cache
+          key: doom-musicpack-v1
+          restore-keys: |
+            doom-musicpack-
 
       - name: Build arcade
         run: |
@@ -64,6 +67,11 @@ jobs:
           test -f dist/doom/wad/doom1.wad
           test -f dist/quake/data/quake106.zip
           test -f dist/quake2/baseq2/pak0.pak
+          # Music is preloaded into doomgeneric.data; a stub build is ~1-2 MB,
+          # the FluidR3 render pushes it well past 10 MB. Fail if it's a stub.
+          data_size=$(stat -c%s dist/doom/doomgeneric.data)
+          echo "doomgeneric.data = $data_size bytes"
+          test "$data_size" -gt 8000000
 
       - uses: actions/upload-pages-artifact@v3
         with:

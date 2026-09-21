@@ -15,7 +15,9 @@ Each cabinet is its own page (`/doom/`, `/quake/`, `/quake2/`) so pointer lock w
 
 ## Build
 
-Needs `emcc` (emsdk 3.1.64), Node, cmake, curl, unzip/7z, and fluidsynth (Doom music).
+Needs `emcc` (emsdk 6.0.9), Node, cmake, curl, unzip/7z, and fluidsynth (Doom music).
+
+Doom's music is pre-rendered to Ogg from the FluidR3 soundfont and embedded in `doomgeneric.data`. The render fetches a 129 MB soundfont, so the rendered pack is cached at `.music-cache/` (and via `actions/cache` in CI) — only the first build pays that cost.
 
 ```bash
 ./scripts/build.sh

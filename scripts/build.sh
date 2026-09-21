@@ -61,18 +61,43 @@ mkdir -p "$ROOT/third_party/web-doom/wad" \
   "$ROOT/third_party/web-doom/build/musicpack" \
   "$ROOT/third_party/web-doom/build/soundfont"
 cp "$ROOT/cache/doom1.wad" "$ROOT/third_party/web-doom/wad/doom1.wad"
-# Skip the 129 MB FluidR3 render in CI; SFX still play. Seed the files
-# package() copies so web-doom's build.sh does not invoke render-music.sh.
-if [[ ! -f "$ROOT/third_party/web-doom/build/musicpack/doom1-music.cfg" ]]; then
-  printf '# arcade stub — music pack omitted\n' > "$ROOT/third_party/web-doom/build/musicpack/doom1-music.cfg"
-fi
-if [[ ! -f "$ROOT/third_party/web-doom/build/soundfont/FLUIDR3-COPYING" ]]; then
-  printf 'FluidR3 not bundled in this arcade build.\n' > "$ROOT/third_party/web-doom/build/soundfont/FLUIDR3-COPYING"
+
+# Doom music is pre-rendered FluidR3 Ogg embedded in doomgeneric.data. The
+# render pulls a 129 MB soundfont, so we persist the small rendered pack in
+# MUSIC_CACHE (a repo-root dir that survives the engine re-clone and is picked
+# up by actions/cache). On a hit we restore it and web-doom's build.sh skips
+# the render; on a miss it renders once and we repopulate the cache below.
+MUSIC_CACHE="$ROOT/.music-cache"
+if [[ -f "$MUSIC_CACHE/musicpack/doom1-music.cfg" ]]; then
+  echo "Restoring cached Doom music pack from $MUSIC_CACHE"
+  rm -rf "$ROOT/third_party/web-doom/build/musicpack"
+  cp -a "$MUSIC_CACHE/musicpack" "$ROOT/third_party/web-doom/build/musicpack"
+  cp "$MUSIC_CACHE/FLUIDR3-COPYING" "$ROOT/third_party/web-doom/build/soundfont/FLUIDR3-COPYING"
+else
+  # Force a real render: an empty musicpack dir would make build.sh think the
+  # pack is present. Remove the placeholder cfg so render-music.sh runs.
+  rm -f "$ROOT/third_party/web-doom/build/musicpack/doom1-music.cfg"
 fi
 cp "$ROOT/games/doom/index.html" "$ROOT/games/doom/app.js" \
   "$ROOT/games/doom/styles.css" "$ROOT/games/doom/arcade-back.css" \
   "$ROOT/third_party/web-doom/web/"
 ( cd "$ROOT/third_party/web-doom" && ./scripts/build.sh )
+
+# Persist the rendered pack (and license) for the next run.
+if [[ -f "$ROOT/third_party/web-doom/build/musicpack/doom1-music.cfg" ]]; then
+  mkdir -p "$MUSIC_CACHE"
+  rm -rf "$MUSIC_CACHE/musicpack"
+  cp -a "$ROOT/third_party/web-doom/build/musicpack" "$MUSIC_CACHE/musicpack"
+  cp "$ROOT/third_party/web-doom/build/soundfont/FLUIDR3-COPYING" "$MUSIC_CACHE/FLUIDR3-COPYING"
+fi
+
+# Guard: the published Doom bundle must carry the rendered music, not a stub.
+OGG_COUNT="$(find "$ROOT/third_party/web-doom/build/musicpack" -name '*.ogg' | wc -l | tr -d ' ')"
+if [[ "$OGG_COUNT" -lt 1 ]]; then
+  echo "::error::Doom music pack has no .ogg tracks — render failed." >&2
+  exit 1
+fi
+echo "Doom music pack: ${OGG_COUNT} Ogg tracks"
 mkdir -p "$DIST/doom"
 cp -a "$ROOT/third_party/web-doom/dist/." "$DIST/doom/"
 cp "$ROOT/games/doom/arcade-back.css" "$DIST/doom/"

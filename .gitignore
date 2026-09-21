@@ -1,5 +1,6 @@
 dist/
 cache/
+.music-cache/
 build/
 third_party/
 .emsdk-cache/
